@@ -29,7 +29,7 @@ subprocess.STDOUT = None
 #except:
 #    logging.exception("trouble")
 
-from Bio import Phylo
+from ete2 import Tree
 
 from google.appengine.api import urlfetch
 from google.appengine.api import taskqueue
@@ -45,14 +45,14 @@ class PruneHandler(webapp2.RequestHandler):
     def get(self):
         logging.info('issa get')
         self.response.headers.add_header("Access-Control-Allow-Origin", "*")
-        self.response.headers['Content-Type'] = 'text/csv'
+        self.response.headers['Content-Type'] = 'application/tre'
 
     def post(self):
         try:
             logging.info('loading tree')
             self.response.headers.add_header("Access-Control-Allow-Origin", "*")
             self.response.headers['Content-Type'] = 'application/tre'
-            tree = Phylo.read('trees/xaa','newick')
+            tree = Tree('trees/xaa')
             logging.info('pruning tree')
 
 
@@ -64,14 +64,13 @@ class PruneHandler(webapp2.RequestHandler):
 
             for i in range(treenum):
 
-                for name in names:
-                	tree.prune(name)
+                tree.prune(names)
 
                 logging.info('saving tree %s' % i)
-                Phylo.write(tree, self.response.out,'newick')
                 
-                self.response.out.write(tree)
-                tree = Phylo.read('trees/xaa','newick')
+                self.response.out.write(tree.write())
+                self.response.out.write('\n')
+                tree = Tree('trees/xaa')
 
             
            
