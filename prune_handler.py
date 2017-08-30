@@ -56,9 +56,9 @@ class PruneHandler(webapp2.RequestHandler):
             logging.info('pruning tree')
 
 
-
-            treenum = 5 #int(self.request.get('treenum',10))
-            names = str(self.request.get('species','').replace(' ','_')).split('\n')
+            self.response.out.write('Yo')
+            treenum = 1000 #int(self.request.get('treenum',10))
+            names = str(self.request.get('species','').replace(' ','_')).split(',')
             logging.info(treenum)
             pruned_trees = []
 
@@ -71,10 +71,8 @@ class PruneHandler(webapp2.RequestHandler):
                 self.response.out.write(tree.write())
                 self.response.out.write('\n')
                 tree = Tree('trees/xaa')
-
-            
-           
-            (pruned_trees)
+                pruned_trees.append(tree.write())
+            self.response.out.write(json.dumps(pruned_trees))
         except Exception as e:
             logging.info(e)
 
