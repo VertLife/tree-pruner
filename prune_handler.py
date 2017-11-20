@@ -14,7 +14,6 @@ from google.appengine.api import app_identity
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
-
 from ete2 import Tree
 
 
@@ -91,23 +90,27 @@ def processTree(tree_filename, job_id, names):
     except Exception as e:
         logging.error(e)
 
+
 class PruningJobHandler(webapp2.RequestHandler):
     def get(self):
+        self.process_request()
+
+    def post(self):
+        self.process_request()
+
+    def process_request(self):
         def generateTreeFile(prefix):
             treefile = '%s_%s.tre' % (prefix, "{:0>4d}".format(
                 random.randrange(0, 9999, 1)))
             return treefile
 
-       
-        
-        
-        sample_size = int(self.request.get('sample_size',10))
-        
-        tree_set = str(self.request.get('tree_set','Stage2_Parrot'))
+        sample_size = int(self.request.get('sample_size', 10))
+
+        tree_set = str(self.request.get('tree_set', 'Stage2_Parrot'))
 
         names = map(
-            lambda n: n.replace(' ','_'), 
-            str(self.request.get('species','')).split(', ')
+            lambda n: n.replace(' ', '_'),
+            str(self.request.get('species', '')).split(', ')
         )
 
         tree_files = {}
@@ -115,7 +118,7 @@ class PruningJobHandler(webapp2.RequestHandler):
         job_id = 'tree-pruner-%s' % uuid.uuid4()
         counter = 0
         while len(tree_files.keys()) < sample_size and counter < 10000:
-            
+
             tree_file = generateTreeFile(tree_set)
             while tree_files.has_key(tree_file):
                 tree_file = generateTreeFile(tree_set)
@@ -128,7 +131,6 @@ class PruningJobHandler(webapp2.RequestHandler):
         self.response.headers['Content-Type'] = 'application/json'
         self.response.out.write(json.dumps({'job_id': job_id}))
 
-       
 
 class PruningResultHandler(webapp2.RequestHandler):
     def get(self):
@@ -139,7 +141,6 @@ class PruningResultHandler(webapp2.RequestHandler):
             pruned_tree = gcs.open(tree)
             self.response.out.write(pruned_tree.read())
             pruned_tree.close()
-
 
 
 application = webapp2.WSGIApplication(
