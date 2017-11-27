@@ -11,11 +11,16 @@ import webapp2
 import cloudstorage as gcs
 
 from google.appengine.api import app_identity
+from google.appengine.api import taskqueue
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 
 from ete2 import Tree
 
+
+MIN_SAMPLE_SIZE = 100
+MAX_TREE_SIZE = 10000
+SOURCE_PATH = '/data.vertlife.org/processing/%s/sources/single_trees/_%s.tre'
 
 """class PruneJob(ndb.Model):
    
@@ -72,7 +77,7 @@ def create_file(filename, contents):
 
 def processTree(tree_filename, job_id, names):
     try:
-        gcs_file = gcs.open('/data.vertlife.org/processing/birdtree/sources/single_trees/' + tree_filename)
+        gcs_file = gcs.open(tree_filename)
         tree_file = gcs_file.read()
         gcs_file.close()
         tree = Tree(tree_file)
@@ -99,33 +104,26 @@ class PruningJobHandler(webapp2.RequestHandler):
         self.process_request()
 
     def process_request(self):
-        def generateTreeFile(prefix):
-            treefile = '%s_%s.tre' % (prefix, "{:0>4d}".format(
-                random.randrange(0, 9999, 1)))
-            return treefile
 
-        sample_size = int(self.request.get('sample_size', 10))
+        def start_tasks():
+            for idx, tree_file in enumerate(sample_trees):
+                logging.info("Spawned task %s, %s" % (idx, tree_file))
+                deferred.defer(processTree, tree_file, job_id, names)
 
+        # Grab the necessary params
+        sample_size = int(self.request.get('sample_size', MIN_SAMPLE_SIZE))
+        tree_base = str(self.request.get('tree_base', 'birdtree'))
         tree_set = str(self.request.get('tree_set', 'Stage2_Parrot'))
-
         names = map(
-            lambda n: n.replace(' ', '_'),
+            lambda n: n.replace('%20', ' ').strip().replace(' ', '_'),
             str(self.request.get('species', '')).split(', ')
         )
 
-        tree_files = {}
-        pruned_trees = []
         job_id = 'tree-pruner-%s' % uuid.uuid4()
-        counter = 0
-        while len(tree_files.keys()) < sample_size and counter < 10000:
-
-            tree_file = generateTreeFile(tree_set)
-            while tree_files.has_key(tree_file):
-                tree_file = generateTreeFile(tree_set)
-            tree_files[tree_file] = True
-            counter = counter + 1
-            logging.info("Spawned task %s, %s" % (counter, tree_file))
-            deferred.defer(processTree, tree_file, job_id, names)
+        tree_nums = random.sample(xrange(0, MAX_TREE_SIZE), sample_size)
+        
+        sample_trees = [SOURCE_PATH % (tree_base, tree_set, n) for n in tree_nums]
+        start_tasks()
 
         self.response.headers.add_header("Access-Control-Allow-Origin", "*")
         self.response.headers['Content-Type'] = 'application/json'
