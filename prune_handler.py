@@ -20,40 +20,7 @@ from ete2 import Tree
 
 MIN_SAMPLE_SIZE = 100
 MAX_TREE_SIZE = 10000
-SOURCE_PATH = '/data.vertlife.org/processing/%s/sources/single_trees/_%s.tre'
-
-"""class PruneJob(ndb.Model):
-   
-    job_id = ndb.StringProperty()
-    created_at = ndb.DateTimeProperty(auto_now_add=True)
-    updated_at = ndb.DateTimeProperty(auto_now_add=True)
-    total_trees ndb.NumberProperty()
-    trees_completed = ndb.NumberProperty()
-    status = ndb.StringProperty()
-
-    @classmethod
-    def tree_completed(cls, tree_id):
-        cls.trees_completed = cls.trees_completed + 1
-    
-class PruneJob(ndb.Model):
-  
-    job_id = ndb.StringProperty()
-    created_at = ndb.DateTimeProperty(auto_now_add=True)
-    updated_at = ndb.DateTimeProperty(auto_now_add=True)
-    total_trees ndb.NumberProperty()
-    trees_completed = ndb.NumberProperty()
-    status = ndb.StringProperty()
-
-    @classmethod
-    def tree_completed(cls, tree_id):
-        cls.trees_completed = cls.trees_completed + 1
-
-    @classmethod
-    def tree_completed(cls, tree_id):
-        cls.trees_completed = cls.trees_completed + 1  
-
-"""
-   
+SOURCE_PATH = '/data.vertlife.org/processing/%s/sources/single_trees/%s'
 
 def create_file(filename, contents):
     """Create a file.
@@ -75,13 +42,12 @@ def create_file(filename, contents):
     gcs_file.close()
 
 
-def processTree(tree_filename, job_id, names):
+def processTree(tree_base, tree_filename, job_id, names):
     try:
-        gcs_file = gcs.open(tree_filename)
+        gcs_file = gcs.open(SOURCE_PATH % (tree_base, tree_filename))
         tree_file = gcs_file.read()
         gcs_file.close()
         tree = Tree(tree_file)
-        missing = None
         logging.info(names)
         try:
             tree.prune(names, preserve_branch_length=True)
@@ -90,10 +56,11 @@ def processTree(tree_filename, job_id, names):
             names = filter(lambda name: name not in missing_names, names)
             tree.prune(names)
 
-        filename = '/data.vertlife.org/pruned_treesets/' + job_id + '/' + tree_filename
+        filename = '/data.vertlife.org/pruned_treesets/%s/%s' % (job_id, tree_filename)
         create_file(filename, tree.write())
     except Exception as e:
         logging.error(e)
+        create_file(filename, 'NO DATA')
 
 
 class PruningJobHandler(webapp2.RequestHandler):
@@ -105,10 +72,11 @@ class PruningJobHandler(webapp2.RequestHandler):
 
     def process_request(self):
 
-        def start_tasks():
+        def start_tasks(tree_base, sample_trees):
             for idx, tree_file in enumerate(sample_trees):
                 logging.info("Spawned task %s, %s" % (idx, tree_file))
-                deferred.defer(processTree, tree_file, job_id, names)
+                deferred.defer(processTree, tree_base, tree_file, job_id, names, 
+                    _queue='pruner')
 
         # Grab the necessary params
         sample_size = int(self.request.get('sample_size', MIN_SAMPLE_SIZE))
@@ -116,14 +84,14 @@ class PruningJobHandler(webapp2.RequestHandler):
         tree_set = str(self.request.get('tree_set', 'Stage2_Parrot'))
         names = map(
             lambda n: n.replace('%20', ' ').strip().replace(' ', '_'),
-            str(self.request.get('species', '')).split(', ')
+            str(self.request.get('species', '')).replace(', ',',').split(',')
         )
 
         job_id = 'tree-pruner-%s' % uuid.uuid4()
         tree_nums = random.sample(xrange(0, MAX_TREE_SIZE), sample_size)
         
-        sample_trees = [SOURCE_PATH % (tree_base, tree_set, n) for n in tree_nums]
-        start_tasks()
+        sample_trees = ["%s_%04d.tre" % (tree_set, n) for n in tree_nums]
+        start_tasks(tree_base, sample_trees)
 
         self.response.headers.add_header("Access-Control-Allow-Origin", "*")
         self.response.headers['Content-Type'] = 'application/json'
