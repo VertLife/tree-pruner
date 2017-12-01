@@ -1,1 +1,8 @@
 *.py[cod]
+
+.DS_Store
+
+# Management scripts
+deploy.sh
+gcloud_app.yaml
+prune_test.py
