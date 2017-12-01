@@ -47,6 +47,9 @@ handlers:
   script: prune_handler.application
 
 libraries:
+- name: webapp2
+  version: "2.5.2"
+
 - name: pycrypto
   version: "2.3"
 
