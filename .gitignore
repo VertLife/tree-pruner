@@ -6,3 +6,4 @@
 deploy.sh
 gcloud_app.yaml
 prune_test.py
+*test*
