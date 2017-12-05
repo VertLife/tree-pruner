@@ -25,7 +25,7 @@ from google.appengine.ext import deferred
 from google.appengine.api import mail
 from google.appengine.ext import ndb
 
-from ete2 import Tree
+from ete3 import Tree
 
 
 MIN_SAMPLE_SIZE = 100
@@ -71,17 +71,33 @@ def write_file(filename, contents, content_type='text/plain'):
         gcs_file.write(contents)
 
 
-def start_prune_job(job_id, email, tree_base, tree_set, sample_size, names):
-    tree_nums = random.sample(xrange(0, MAX_TREE_SIZE), sample_size)
-    sample_trees = ["%s_%04d.tre" % (tree_set, n) for n in tree_nums]
+def start_prune_job(job_id):  # , email, tree_base, tree_set, sample_size, names
+    with gcs.open(JOB_CONFIG_PATH % job_id) as fh:
+        job_info = yaml.load(fh)    
 
-    init_job(job_id, email, tree_base, tree_set, sample_size, names)
+    # init_job(job_id, email, tree_base, tree_set, sample_size, names)
+    
+    # Get the base tree from config
+    tree_base = job_info['base_tree'].lower()
+
+    # Get the tree_set from config
+    tree_set = job_info['tree_set']
+    for k, v in TREE_CODES.iteritems():
+        if v == tree_set:
+            tree_set = k
+    
+    names = [n.replace(' ', '_') for n in job_info['names']]
+    sample_trees = job_info['sample_trees']
+            
     start_pruning(job_id, tree_base, sample_trees, names)
     # process_bad_names(job_id)
     finalise_job(job_id, sample_trees, tree_base, tree_set)
 
 
 def init_job(job_id, email, tree_base, tree_set, sample_size, names):
+    tree_nums = random.sample(xrange(0, MAX_TREE_SIZE), sample_size)
+    sample_trees = ["%s_%04d.tre" % (tree_set, n) for n in tree_nums]
+
     # Start by creating a config file
     job_info = {
         'job_id': job_id,
@@ -89,6 +105,7 @@ def init_job(job_id, email, tree_base, tree_set, sample_size, names):
         'base_tree': TREE_SITE_CODES[tree_base],
         'tree_set': TREE_CODES[tree_set],
         'sample_size': sample_size,
+        'sample_trees': sample_trees,
         'names': [n.replace('_', ' ') for n in names],
         'status': 'CREATED',
         'created_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M')
@@ -265,8 +282,8 @@ class PruningJobHandler(webapp2.RequestHandler):
 
         # Grab the necessary params
         sample_size = int(self.request.get('sample_size', MIN_SAMPLE_SIZE))
-        tree_base = str(self.request.get('tree_base', 'birdtree'))
-        tree_set = str(self.request.get('tree_set', 'Stage2_Parrot'))
+        tree_base = str(self.request.get('tree_base', 'birdtree')).replace('%20', ' ').strip()
+        tree_set = str(self.request.get('tree_set', 'Stage2_Parrot')).replace('%20', ' ').strip()
         _species = self.request.get('species', None)
         email = self.request.get('email', None)
 
@@ -280,12 +297,14 @@ class PruningJobHandler(webapp2.RequestHandler):
             self.send_error('Please select a sample size between %d and %d' % (MIN_SAMPLE_SIZE, MAX_TREE_SIZE))
 
         job_id = 'tree-pruner-%s' % uuid.uuid4()
-        email = str(email)
+        email = str(email).replace('%20', ' ').strip()
         names = set(map(
             lambda n: n.replace('%20', ' ').strip().replace(' ', '_'),
             str(_species).replace('\n', ',').replace(', ',',').split(',')
         ))
-        background_thread.start_new_background_thread(start_prune_job, [job_id, email, tree_base, tree_set, sample_size, names])
+        # background_thread.start_new_background_thread(start_prune_job, [job_id, email, tree_base, tree_set, sample_size, names])
+        init_job(job_id, email, tree_base, tree_set, sample_size, names)
+        deferred.defer(start_prune_job, job_id, _queue='pruner')
 
         self.response.headers.add_header("Access-Control-Allow-Origin", "*")
         self.response.headers['Content-Type'] = 'application/json'
@@ -322,6 +341,8 @@ class PruningResultHandler(webapp2.RequestHandler):
 
         # TODO: Check that both the job_id and email match
         message = {}
+        email = str(email).replace('%20', ' ').strip()
+        job_id = str(job_id).replace('%20', ' ').strip()
         try:
             with gcs.open(JOB_STATUS_PATH % job_id) as fh:
                 status = fh.read()
