@@ -115,6 +115,17 @@ def init_job(job_id, email, tree_base, tree_set, sample_size, names):
     # Initialize the status file
     write_file(JOB_STATUS_PATH % job_id, 'STARTED')
 
+    # Notify the user
+    sender_address = ('Map of Life <{}@appspot.gserviceaccount.com>'.format(app_identity.get_application_id()))
+    subject = '{}: Your request is being processed'.format(TREE_SITE_CODES[tree_base])
+    body = """Thank you for using the {0} service to generate your phylogeny subsets.
+Your request has been received and is currently being processed. You will recieve a confirmation email when your results have been completed.
+Please visit http://birdtree.org/subsets/ to check the status of your request, using the following information:
+  TasK ID: {2}
+  Email: {1}
+    """.format(TREE_SITE_CODES[tree_base], email, job_id)
+    mail.send_mail(sender_address, email, subject, body)
+
 
 def start_pruning(job_id, tree_base, sample_trees, names):
     try:
@@ -243,8 +254,8 @@ def finalise_job(job_id, sample_trees, tree_base, tree_set):
     # Notify the user
     sender_address = ('Map of Life <{}@appspot.gserviceaccount.com>'.format(app_identity.get_application_id()))
     subject = '{}: Your pruned trees are ready'.format(TREE_SITE_CODES[tree_base])
-    body = """Thank you for using the {0} service to prune your trees.
-You can access your pruned trees and additional information here:
+    body = """Thank you for using the {0} service to generate your phylogeny subsets.
+You can access your tree results and additional information here:
   Pruned Trees: {1}
   TasK ID: {2}
     """.format(TREE_SITE_CODES[tree_base], dl_url, job_id)
