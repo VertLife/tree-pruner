@@ -1,0 +1,20 @@
+service: tree-pruner-alpha
+runtime: go112
+
+instance_class: B2
+basic_scaling:
+    max_instances: 15
+    idle_timeout: 60s
+
+env_variables:
+  CARTO_URL: "CARTO_URL"
+  CARTO_API_KEY: "CARTO_API_KEY"
+  MAILGUN_DOMAIN: "MAILGUN_DOMAIN"
+  MAILGUN_API_KEY: "MAILGUN_API_KEY"
+  MAILGUN_SENDER: "MAILGUN_SENDER"
+  TASK_PROJECT: "TASK_PROJECT"
+  TASK_LOCATION: "TASK_LOCATION"
+  TASK_QUEUE: "TASK_QUEUE"
+  TASK_SERVICE: "TASK_SERVICE"
+  TASK_VERSION: "TASK_VERSION"
+  TASK_ROUTE: "TASK_ROUTE"
