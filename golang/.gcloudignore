@@ -1,0 +1,15 @@
+.gcloudignore
+
+.git
+.gitignore
+
+# Ignore old files/folders
+app*.template
+*.sh
+test
+perl
+python
+
+# Ignore misc files and folders
+.DS_Store
+.vscode

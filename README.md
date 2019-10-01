@@ -1,2 +1,3 @@
 # tree-pruner
-A phylogenic tree pruning AppEngine app.
+
+A phylogenic tree pruning service running on Google App Engine.
