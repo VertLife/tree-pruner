@@ -11,7 +11,6 @@ require (
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/mailgun/mailgun-go/v3 v3.6.0
 	github.com/sirupsen/logrus v1.4.2
-	google.golang.org/appengine v1.6.4 // indirect
-	google.golang.org/genproto v0.0.0-20190911173649-1774047e7e51
-	gopkg.in/yaml.v2 v2.2.2
+	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c
+	gopkg.in/yaml.v2 v2.2.3
 )
